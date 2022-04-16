@@ -4,7 +4,7 @@ import { UserModule } from './users/user.module';
 import { AuthModule } from './auth/auth.module';
 
 @Module({
-  imports: [UserModule, AuthModule , MongooseModule.forRoot('mongodb://localhost:27017/ratemyroom')],
+  imports: [UserModule, AuthModule, MongooseModule.forRoot('mongodb://localhost:27017/ratemyroom')],
   controllers: [],
   providers: [],
 })
