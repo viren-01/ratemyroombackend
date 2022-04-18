@@ -19,6 +19,9 @@ export class Users {
 
   @Prop({required: true})
   email: string;
+
+  @Prop()
+  refreshToken: string;
 }
 
 export const UsersSchema = SchemaFactory.createForClass(Users);
