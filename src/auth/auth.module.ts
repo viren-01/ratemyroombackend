@@ -1,6 +1,7 @@
-import { Module } from "@nestjs/common";
+import { MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
 import { Users, UsersSchema } from "model/users.schema";
+import { TokenAuthenticationMiddleware } from "src/middlewares/token-auth.middleware";
 import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
 
@@ -10,4 +11,8 @@ import { AuthService } from "./auth.service";
     providers: [AuthService]
 })
 
-export class AuthModule {}
+export class AuthModule implements NestModule {
+    configure(consumer: MiddlewareConsumer) {
+        consumer.apply(TokenAuthenticationMiddleware.authenticateToken).forRoutes('auth/all');
+    }
+}
