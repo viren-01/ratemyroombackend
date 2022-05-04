@@ -1,4 +1,4 @@
-import { HttpException, HttpStatus, Injectable, NotFoundException, UnauthorizedException } from "@nestjs/common";
+import { Injectable, NotFoundException, UnauthorizedException } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import * as bcrypt from "bcrypt";
@@ -11,20 +11,17 @@ export class AuthService {
     constructor(@InjectModel(Users.name) private userModel: Model<UserDocument>) { }
 
     async login(email: string, password: string) {
-
         const user = await this.userModel.findOne({ email })
 
         if (user && user.password == password) {
-
             const deletePreviousToken = await this.userModel.updateOne({ email }, { $unset: { refreshToken: 1 } })
 
-            const accessToken = this.generateAccessToken({ user_id: user.id, email: user.email, username: user.username })
-
-            const newRefreshToken = this.generateRefreshToken({ user_id: user.id, email: user.email, username: user.username })
+            const accessToken = await this.generateAccessToken({ user_id: user.id, email: user.email, username: user.username })
+            const newRefreshToken = await this.generateRefreshToken({ user_id: user.id, email: user.email, username: user.username })
 
             const updateUser = await this.userModel.updateOne({ email }, { $set: { refreshToken: newRefreshToken } })
 
-            return { accessToken, refreshToken: newRefreshToken }
+            return { statusCode: 200, accessToken, refreshToken: newRefreshToken }
         }
         else if (user && user.password != password) {
             throw new UnauthorizedException()
@@ -43,37 +40,35 @@ export class AuthService {
         }
         const createUser = await this.userModel.create(user)
 
-        const accessToken = this.generateAccessToken({ user_id: createUser.id, email: createUser.email, createUsername: createUser.username })
-
-        const refreshToken = this.generateRefreshToken({ user_id: createUser.id, email: createUser.email, username: createUser.username })
-
-        return { accessToken, refreshToken }
+        return { statusCode: 201}
     }
 
-    returnNewRefreshToken(refreshToken: string): Object {
+    async returnNewRefreshToken(refreshToken: string): Promise<any> {
 
-        jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET, async (err: Error, resp: any) => {
-            if (err) throw new UnauthorizedException()
-            else {
-                const user_id = resp.user_id
-                console.log(resp)
-                const user = await this.userModel.findById(user_id)
-                console.log(user)
+        const findUserWithRefreshToken = await this.userModel.findOne({ refreshToken })
+        
+        if (!findUserWithRefreshToken) {
+            return new UnauthorizedException()
+        }
+        else {
+            return new Promise((resolve, reject) => {
+                jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET, async (err: Error, resp: any) => {
+                    if (err) reject(new UnauthorizedException())
+                    else {
+                        const user_id = resp.user_id
+                        const user = await this.userModel.findById(user_id)
 
-                if (!user) throw new NotFoundException()
+                        if (!user) reject(new NotFoundException())
 
-                const token = await this.generateAccessToken(resp)
-                const refreshToken = await this.generateRefreshToken(resp)
+                        const token = await this.generateAccessToken(resp)
+                        const refreshToken = await this.generateRefreshToken(resp)
 
-                console.log(token + "My TOken")
-                console.log(refreshToken + "My 2 TOken")
-
-
-                // const update  = await this.userModel.updateMany({ email: user.email }, { $set: { refreshToken: refreshToken } })
-                // console.log(update)
-                return { accessToken: token, refreshToken }
-            }
-        })
+                        const update = await this.userModel.updateMany({ email: user.email }, { $set: { refreshToken: "" } })
+                        resolve({ accessToken: token, refreshToken })
+                    }
+                })
+            })
+        }
     }
 
     async hashdata(data: string) {
@@ -81,10 +76,14 @@ export class AuthService {
     }
 
     generateAccessToken(payload: Object) {
-        return jwt.sign(payload, process.env.ACCESS_TOKEN_SECRET, { expiresIn: 15 })
+        return new Promise((resolve, reject) => {
+            resolve(jwt.sign(payload, process.env.ACCESS_TOKEN_SECRET, { expiresIn: 15 }))
+        })
     }
 
     generateRefreshToken(payload: Object) {
-        return jwt.sign(payload, process.env.REFRESH_TOKEN_SECRET)
+        return new Promise((resolve, reject) => {
+            resolve(jwt.sign(payload, process.env.REFRESH_TOKEN_SECRET))
+        })
     }
 }
