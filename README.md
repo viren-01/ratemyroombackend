@@ -45,6 +45,9 @@ $ npm run start:dev
 $ npm run start:prod
 ```
 
+App Image
+![image](https://github.com/viren-01/ratemyroom/blob/main/styles/phn-back.png?raw=true)
+
 ## Test
 
 ```bash
